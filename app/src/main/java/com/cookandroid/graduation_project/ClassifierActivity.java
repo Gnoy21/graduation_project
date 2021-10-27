@@ -18,6 +18,7 @@ package com.cookandroid.graduation_project;
 
 import static java.lang.System.currentTimeMillis;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Typeface;
@@ -41,6 +42,7 @@ public class ClassifierActivity extends com.cookandroid.graduation_project.Camer
   private Integer sensorOrientation;
   private Classifier classifier;
   private BorderedText borderedText;
+  private String email;
 
   @Override
   protected int getLayoutId() {
@@ -70,6 +72,10 @@ public class ClassifierActivity extends com.cookandroid.graduation_project.Camer
     sensorOrientation = rotation - getScreenOrientation();
 
     rgbFrameBitmap = Bitmap.createBitmap(previewWidth, previewHeight, Config.ARGB_8888);
+
+    Intent intent2 = getIntent();
+    email = intent2.getStringExtra("email");
+
   }
 
 
@@ -79,24 +85,24 @@ public class ClassifierActivity extends com.cookandroid.graduation_project.Camer
     rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth, 0, 0, previewWidth, previewHeight);
 
     runInBackground(
-            new Runnable() {
-              @Override
-              public void run() {
-                if (classifier != null) {
-                  final long startTime = SystemClock.uptimeMillis();
-                  Log.d("min", "1");
-                  final List<Classifier.Recognition> results =
-                          classifier.recognizeImage(rgbFrameBitmap, sensorOrientation);
+        new Runnable() {
+          @Override
+          public void run() {
+            if (classifier != null) {
+              final long startTime = SystemClock.uptimeMillis();
+              final List<Classifier.Recognition> results =
+                  classifier.recognizeImage(rgbFrameBitmap, sensorOrientation);
 
-                  if(timeForInference + 3000 < currentTimeMillis()){
-                    timeForInference = currentTimeMillis();
-                    runOnUiThread(
-                            new Runnable() {
-                              @Override
-                              public void run() {
-                                showResultsInBottomSheet(results);
-                              }
-                            });
+              if(timeForInference + 3000 < currentTimeMillis()){
+                timeForInference = currentTimeMillis();
+                runOnUiThread(
+                        new Runnable() {
+                          @Override
+                          public void run() {
+
+                            showResultsInBottomSheet(results, email);
+                          }
+                        });
                   }
                 }
                 readyForNextImage();
