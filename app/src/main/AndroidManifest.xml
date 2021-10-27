@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.cookandroid.graduation_project">
+
+    <!-- 위치 사용 권한 설정-->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
     <!-- 인터넷 사용 권한 설정-->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -28,13 +33,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
                 <data android:host="oauth" android:scheme="@string/kakao_app_key"/>
             </intent-filter>
-
         </activity>
 
         <activity android:name="com.cookandroid.graduation_project.ClassifierActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.CovidInfoActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.HomeActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.ReportListActivity"></activity>
+        <activity android:name="com.cookandroid.graduation_project.MapActivity"></activity>
+        <meta-data android:name="com.naver.maps.map.CLIENT_ID" android:value="3tdk09etm6"/>
     </application>
 
 </manifest>

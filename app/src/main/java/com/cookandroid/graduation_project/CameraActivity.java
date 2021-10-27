@@ -149,9 +149,6 @@ public abstract class CameraActivity extends AppCompatActivity
       checkRunTimePermission();
     }
 
-
-    //Toast.makeText(CameraActivity.this, "현재위치 \n위도 " + latitude + "\n경도 " + longitude, Toast.LENGTH_LONG).show();
-    //Toast.makeText(CameraActivity.this, address , Toast.LENGTH_LONG).show();
   }
 
   protected int[] getRgbBytes() {
@@ -321,21 +318,8 @@ public abstract class CameraActivity extends AppCompatActivity
     }
   }
 
-  @Override
-  public void onRequestPermissionsResult(
-          final int requestCode, final String[] permissions, final int[] grantResults) {
-    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    if (requestCode == PERMISSIONS_REQUEST) {
-      if (allPermissionsGranted(grantResults)) {
-        setFragment();
-      } else {
-        requestPermission();
-      }
-    }
-  }
-
-  private static boolean allPermissionsGranted(final int[] grantResults) {
-    for (int result : grantResults) {
+  private static boolean allPermissionsGranted(final int[] grandResults) {
+    for (int result : grandResults) {
       if (result != PackageManager.PERMISSION_GRANTED) {
         return false;
       }
@@ -495,9 +479,11 @@ public abstract class CameraActivity extends AppCompatActivity
     result.put("email", email);
     result.put("state", state);
     result.put("address", address);
+    result.put("latitude", latitude);
+    result.put("longitude", longitude);
 
 
-    writeUser(Integer.toString(i++), time, email, state, address);
+    writeUser(Integer.toString(i++), time, email, state, address, latitude, longitude);
   }
 
 
@@ -534,8 +520,8 @@ public abstract class CameraActivity extends AppCompatActivity
     // Do nothing.
   }
 
-  private void writeUser(String s, String time, String email, boolean state, String address) {
-    ReportData reportData =  new ReportData(time, email,  state, address);
+  private void writeUser(String s, String time, String email, boolean state, String address, Double longitude, Double latitude) {
+    ReportData reportData =  new ReportData(time, email,  state, address, longitude, latitude);
 
     //데이터 저장
     mDatabase.child("reports").push().setValue(reportData)
@@ -666,7 +652,7 @@ public abstract class CameraActivity extends AppCompatActivity
       addresses = geocoder.getFromLocation(
               latitude,
               longitude,
-              7);
+              15);
     } catch (IOException ioException) {
       //네트워크 문제
       Toast.makeText(this, "지오코더 서비스 사용불가", Toast.LENGTH_LONG).show();
