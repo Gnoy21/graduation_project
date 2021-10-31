@@ -27,25 +27,20 @@
             android:layout_alignParentTop="true"
             android:layout_alignParentLeft="true">
 
+
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textFontWeight="900"
-                android:textSize="11sp"
-                android:textColor="#333"
-                android:text="신고번호"/>
-            <TextView
+                android:id="@+id/tv_report_number"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="5dp"
                 android:textFontWeight="900"
                 android:textSize="16sp"
-                android:textColor="#705516"
-                android:text="1100001421"/>
+                android:textColor="#705516"/>
         </LinearLayout>
 
 
         <TextView
+            android:id="@+id/tv_report_address"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/l1"
@@ -70,6 +65,7 @@
                 android:textColor="#333"
                 android:text="신고일자"/>
             <TextView
+                android:id="@+id/tv_report_date"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
@@ -80,6 +76,7 @@
 
 
         <TextView
+            android:id="@+id/tv_report_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/l2"

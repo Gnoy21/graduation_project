@@ -52,6 +52,9 @@ public class MapActivity extends AppCompatActivity implements NaverMap.OnMapClic
             Manifest.permission.ACCESS_COARSE_LOCATION
     };
 
+    private Double latitude;
+    private Double longitude;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +70,10 @@ public class MapActivity extends AppCompatActivity implements NaverMap.OnMapClic
         mapFragment.getMapAsync(this);
         locationSource = new FusedLocationSource(this, LOCATION_PERMISSION_REQUEST_CODE);
 
+        Intent intent = getIntent();
+        latitude = Double.parseDouble(intent.getStringExtra("latitude"));
+        longitude = Double.parseDouble(intent.getStringExtra("longitude"));
+
         //현재위치
         if (!checkLocationServicesStatus()) {
 
@@ -80,9 +87,9 @@ public class MapActivity extends AppCompatActivity implements NaverMap.OnMapClic
     @Override
     public void onMapReady(@NonNull NaverMap naverMap) {
         Marker marker = new Marker();
-        marker.setPosition(new LatLng(36.763695, 127.281796));
+        marker.setPosition(new LatLng(longitude, latitude));
         marker.setMap(naverMap);
-        CameraUpdate cameraUpdate = CameraUpdate.scrollTo(new LatLng(36.763695, 127.281796));
+        CameraUpdate cameraUpdate = CameraUpdate.scrollTo(new LatLng(longitude, latitude));
         naverMap.moveCamera(cameraUpdate);
 
     }
