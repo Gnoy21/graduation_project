@@ -90,10 +90,18 @@ public class MainActivity extends AppCompatActivity {
 
                 writeUser(Integer.toString(i++), user.getKakaoAccount().getProfile().getNickname(), user.getKakaoAccount().getEmail());
 
-                Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
-                intent.putExtra("name", user.getKakaoAccount().getProfile().getNickname());
-                intent.putExtra("email", user.getKakaoAccount().getEmail());
-                startActivity(intent);
+                String adminEmail = "pmy0237@kakao.com";
+                if(user.getKakaoAccount().getEmail().equals(adminEmail)){
+
+                    Intent intent = new Intent(getApplicationContext(), AdminReportListActivity.class);
+                    startActivity(intent);
+                }
+                else{
+                    Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
+                    intent.putExtra("name", user.getKakaoAccount().getProfile().getNickname());
+                    intent.putExtra("email", user.getKakaoAccount().getEmail());
+                    startActivity(intent);
+                }
 
                 return null;
 

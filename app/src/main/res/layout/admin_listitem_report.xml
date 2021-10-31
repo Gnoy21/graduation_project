@@ -50,6 +50,17 @@
             android:textSize="14sp" />
 
 
+        <Button
+            android:id="@+id/btn_handle"
+            android:layout_width="75dp"
+            android:layout_height="30dp"
+            android:layout_below="@id/l2"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="9dp"
+            android:layout_marginRight="0dp"
+            android:text="처리완료"
+            android:textSize="10dp" />
+
         <LinearLayout
             android:id="@+id/l2"
             android:layout_width="wrap_content"

@@ -40,6 +40,7 @@
         <activity android:name="com.cookandroid.graduation_project.HomeActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.ReportListActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.MapActivity"></activity>
+        <activity android:name="com.cookandroid.graduation_project.AdminReportListActivity"></activity>
         <meta-data android:name="com.naver.maps.map.CLIENT_ID" android:value="3tdk09etm6"/>
     </application>
 
