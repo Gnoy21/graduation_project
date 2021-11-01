@@ -16,6 +16,9 @@
 
 package com.cookandroid.graduation_project;
 
+import static java.lang.System.currentTimeMillis;
+
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
@@ -25,12 +28,16 @@ import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.location.Address;
+import android.location.Geocoder;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.SystemClock;
 import android.util.Log;
 import android.util.Size;
 import android.util.TypedValue;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 
 import com.cookandroid.graduation_project.customview.OverlayView;
 import com.cookandroid.graduation_project.customview.OverlayView.DrawCallback;
@@ -40,10 +47,20 @@ import com.cookandroid.graduation_project.env.Logger;
 import com.cookandroid.graduation_project.tflite.Classifier;
 import com.cookandroid.graduation_project.tflite.YoloV4Classifier;
 import com.cookandroid.graduation_project.tracking.MultiBoxTracker;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
 /**
  * An activity that uses a TensorFlowMultiBoxDetector and ObjectTracker to detect and then track
@@ -85,6 +102,15 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
     private BorderedText borderedText;
 
+    private String string1 = "without_mask";
+    private String email;
+    boolean state = false;
+    private GpsTracker gpsTracker;
+
+    private static DatabaseReference mDatabase;
+    DateFormat simpleDateFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm");
+    int i = 1;
+
     @Override
     public void onPreviewSizeChosen(final Size size, final int rotation) {
         final float textSizePx =
@@ -94,6 +120,11 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
         borderedText.setTypeface(Typeface.MONOSPACE);
 
         tracker = new MultiBoxTracker(this);
+
+        Intent intent1 = getIntent();
+        email = intent1.getStringExtra("email");
+
+        mDatabase = FirebaseDatabase.getInstance().getReference();
 
         int cropSize = TF_OD_API_INPUT_SIZE;
 
@@ -215,6 +246,42 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
                                 cropToFrameTransform.mapRect(location);
 
+                                if(timeForInference + 2000 < currentTimeMillis()){
+                                    timeForInference = currentTimeMillis();
+                                    runOnUiThread(
+                                            new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    if(result.getTitle().equals(string1)){
+                                                        long now = System.currentTimeMillis();
+                                                        Date date = new Date(now);
+                                                        simpleDateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
+
+                                                        gpsTracker = new GpsTracker(DetectorActivity.this);
+
+                                                        double latitude = gpsTracker.getLatitude();
+                                                        double longitude = gpsTracker.getLongitude();
+
+                                                        String address = getCurrentAddress(latitude, longitude);
+
+                                                        String time = simpleDateFormat.format(date);
+
+                                                        HashMap result = new HashMap<>();
+                                                        result.put("time", time);
+                                                        result.put("email", email);
+                                                        result.put("state", state);
+                                                        result.put("address", address);
+                                                        result.put("latitude", latitude);
+                                                        result.put("longitude", longitude);
+
+                                                        writeUser(Integer.toString(i++), time, email, state, address, latitude, longitude);
+
+                                                        Toast.makeText(getApplicationContext(), "저장완료", Toast.LENGTH_SHORT).show();
+                                                    }
+                                                }
+                                            });
+                                }
+
                                 result.setLocation(location);
                                 mappedRecognitions.add(result);
                             }
@@ -263,5 +330,60 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     @Override
     protected void setNumThreads(final int numThreads) {
         runInBackground(() -> detector.setNumThreads(numThreads));
+    }
+
+    private void writeUser(String s, String time, String email, boolean state, String address, Double longitude, Double latitude) {
+        ReportData reportData =  new ReportData(time, email,  state, address, longitude, latitude);
+
+        //데이터 저장
+        mDatabase.child("reports").push().setValue(reportData)
+                .addOnSuccessListener(new OnSuccessListener<Void>() { //데이터베이스에 넘어간 이후 처리
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Toast.makeText(getApplicationContext(),"저장을 완료했습니다", Toast.LENGTH_LONG).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(getApplicationContext(),"저장에 실패했습니다" , Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    public String getCurrentAddress( double latitude, double longitude) {
+
+        //지오코더... GPS를 주소로 변환
+        Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+
+        List<Address> addresses;
+
+        try {
+
+            addresses = geocoder.getFromLocation(
+                    latitude,
+                    longitude,
+                    15);
+        } catch (IOException ioException) {
+            //네트워크 문제
+            Toast.makeText(this, "지오코더 서비스 사용불가", Toast.LENGTH_LONG).show();
+            return "지오코더 서비스 사용불가";
+        } catch (IllegalArgumentException illegalArgumentException) {
+            Toast.makeText(this, "잘못된 GPS 좌표", Toast.LENGTH_LONG).show();
+            return "잘못된 GPS 좌표";
+
+        }
+
+
+
+        if (addresses == null || addresses.size() == 0) {
+            Toast.makeText(this, "주소 미발견", Toast.LENGTH_LONG).show();
+            return "주소 미발견";
+
+        }
+
+        Address address = addresses.get(0);
+        return address.getAddressLine(0).toString()+"\n";
+
     }
 }

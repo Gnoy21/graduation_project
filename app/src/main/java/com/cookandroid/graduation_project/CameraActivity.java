@@ -16,6 +16,8 @@
 
 package com.cookandroid.graduation_project;
 
+import static java.lang.System.currentTimeMillis;
+
 import android.Manifest;
 import android.app.Fragment;
 import android.content.Context;
@@ -91,11 +93,15 @@ public abstract class CameraActivity extends AppCompatActivity
   private SwitchCompat apiSwitchCompat;
   private TextView threadsTextView;
 
+  public long timeForInference;
+
   @Override
   protected void onCreate(final Bundle savedInstanceState) {
     LOGGER.d("onCreate " + this);
     super.onCreate(null);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+    timeForInference = currentTimeMillis();
 
     setContentView(R.layout.tfe_od_activity_camera);
     Toolbar toolbar = findViewById(R.id.toolbar);
