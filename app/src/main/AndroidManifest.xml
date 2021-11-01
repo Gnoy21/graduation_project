@@ -27,7 +27,8 @@
         <meta-data
             android:name="com.kakao.sdk.Appkey"
             android:value="@string/kakao_app_key" />
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true"></activity>
+        <activity android:name="com.cookandroid.graduation_project.LoadingActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -40,7 +41,8 @@
         <activity android:name="com.cookandroid.graduation_project.HomeActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.ReportListActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.MapActivity"></activity>
-        <activity android:name="com.cookandroid.graduation_project.AdminReportListActivity"></activity>
+        <activity android:name="com.cookandroid.graduation_project.AdminReportListActivity">
+        </activity>
         <meta-data android:name="com.naver.maps.map.CLIENT_ID" android:value="3tdk09etm6"/>
     </application>
 

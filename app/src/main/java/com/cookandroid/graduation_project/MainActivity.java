@@ -90,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
 
                 writeUser(Integer.toString(i++), user.getKakaoAccount().getProfile().getNickname(), user.getKakaoAccount().getEmail());
 
-                String adminEmail = "pmy0237@kakao.com";
+                String adminEmail = "pmy0237@kakao.com1";
 
                 if(user.getKakaoAccount().getEmail().equals(adminEmail)){
 
