@@ -16,23 +16,15 @@
 
 package com.cookandroid.graduation_project;
 
-import static java.lang.System.currentTimeMillis;
-
 import android.Manifest;
-import android.app.AlertDialog;
 import android.app.Fragment;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.params.StreamConfigurationMap;
-import android.location.Address;
-import android.location.Geocoder;
-import android.location.LocationManager;
 import android.media.Image;
 import android.media.Image.Plane;
 import android.media.ImageReader;
@@ -46,52 +38,39 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
-import android.widget.AdapterView;
+import android.widget.CompoundButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.UiThread;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.appcompat.widget.Toolbar;
 
-import java.io.IOException;
-import java.text.DateFormat;
-import java.util.Date;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 
 import com.cookandroid.graduation_project.env.ImageUtils;
-import com.cookandroid.graduation_project.tflite.Classifier.Device;
-import com.cookandroid.graduation_project.tflite.Classifier.Recognition;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import com.cookandroid.graduation_project.env.Logger;
 
 import java.nio.ByteBuffer;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.TimeZone;
 
 public abstract class CameraActivity extends AppCompatActivity
-        implements OnImageAvailableListener,
+    implements OnImageAvailableListener,
         Camera.PreviewCallback,
-        View.OnClickListener,
-        AdapterView.OnItemSelectedListener {
+        CompoundButton.OnCheckedChangeListener,
+        View.OnClickListener {
+  private static final Logger LOGGER = new Logger();
 
   private static final int PERMISSIONS_REQUEST = 1;
 
   private static final String PERMISSION_CAMERA = Manifest.permission.CAMERA;
   protected int previewWidth = 0;
   protected int previewHeight = 0;
+  private boolean debug = false;
   private Handler handler;
   private HandlerThread handlerThread;
   private boolean useCamera2API;
@@ -102,36 +81,26 @@ public abstract class CameraActivity extends AppCompatActivity
   private Runnable postInferenceCallback;
   private Runnable imageConverter;
 
-  public long timeForInference;
+  private LinearLayout bottomSheetLayout;
+  private LinearLayout gestureLayout;
+  private BottomSheetBehavior<LinearLayout> sheetBehavior;
 
-  private Device device = Device.CPU;
-  private int numThreads = -1;
-  private String email;
-  int reportNum = 1;
-  boolean state = false;
-
-  private GpsTracker gpsTracker;
-
-  private static final int GPS_ENABLE_REQUEST_CODE = 2001;
-  private static final int PERMISSIONS_REQUEST_CODE = 100;
-  private static final String[] PERMISSIONS  = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
-
-  private static DatabaseReference mDatabase;
-  DateFormat simpleDateFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm");
-  int i = 1;
+  protected TextView frameValueTextView, cropValueTextView, inferenceTimeTextView;
+  protected ImageView bottomSheetArrowImageView;
+  private ImageView plusImageView, minusImageView;
+  private SwitchCompat apiSwitchCompat;
+  private TextView threadsTextView;
 
   @Override
   protected void onCreate(final Bundle savedInstanceState) {
+    LOGGER.d("onCreate " + this);
     super.onCreate(null);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-    setContentView(R.layout.tfe_ic_activity_camera);
-
-    Intent intent1 = getIntent();
-
-    email = intent1.getStringExtra("email");
-
-    mDatabase = FirebaseDatabase.getInstance().getReference();
+    setContentView(R.layout.tfe_od_activity_camera);
+    Toolbar toolbar = findViewById(R.id.toolbar);
+    setSupportActionBar(toolbar);
+    getSupportActionBar().setDisplayShowTitleEnabled(false);
 
     if (hasPermission()) {
       setFragment();
@@ -139,16 +108,70 @@ public abstract class CameraActivity extends AppCompatActivity
       requestPermission();
     }
 
-    timeForInference = currentTimeMillis();
+    threadsTextView = findViewById(R.id.threads);
+    plusImageView = findViewById(R.id.plus);
+    minusImageView = findViewById(R.id.minus);
+    apiSwitchCompat = findViewById(R.id.api_info_switch);
+    bottomSheetLayout = findViewById(R.id.bottom_sheet_layout);
+    gestureLayout = findViewById(R.id.gesture_layout);
+    sheetBehavior = BottomSheetBehavior.from(bottomSheetLayout);
+    bottomSheetArrowImageView = findViewById(R.id.bottom_sheet_arrow);
 
-    if (!checkLocationServicesStatus()) {
+    ViewTreeObserver vto = gestureLayout.getViewTreeObserver();
+    vto.addOnGlobalLayoutListener(
+        new ViewTreeObserver.OnGlobalLayoutListener() {
+          @Override
+          public void onGlobalLayout() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
+              gestureLayout.getViewTreeObserver().removeGlobalOnLayoutListener(this);
+            } else {
+              gestureLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+            }
+            //                int width = bottomSheetLayout.getMeasuredWidth();
+            int height = gestureLayout.getMeasuredHeight();
 
-      showDialogForLocationServiceSetting();
-    }else {
+            sheetBehavior.setPeekHeight(height);
+          }
+        });
+    sheetBehavior.setHideable(false);
 
-      checkRunTimePermission();
-    }
+    sheetBehavior.setBottomSheetCallback(
+        new BottomSheetBehavior.BottomSheetCallback() {
+          @Override
+          public void onStateChanged(@NonNull View bottomSheet, int newState) {
+            switch (newState) {
+              case BottomSheetBehavior.STATE_HIDDEN:
+                break;
+              case BottomSheetBehavior.STATE_EXPANDED:
+                {
+                  bottomSheetArrowImageView.setImageResource(R.drawable.icn_chevron_down);
+                }
+                break;
+              case BottomSheetBehavior.STATE_COLLAPSED:
+                {
+                  bottomSheetArrowImageView.setImageResource(R.drawable.icn_chevron_up);
+                }
+                break;
+              case BottomSheetBehavior.STATE_DRAGGING:
+                break;
+              case BottomSheetBehavior.STATE_SETTLING:
+                bottomSheetArrowImageView.setImageResource(R.drawable.icn_chevron_up);
+                break;
+            }
+          }
 
+          @Override
+          public void onSlide(@NonNull View bottomSheet, float slideOffset) {}
+        });
+
+    frameValueTextView = findViewById(R.id.frame_info);
+    cropValueTextView = findViewById(R.id.crop_info);
+    inferenceTimeTextView = findViewById(R.id.inference_info);
+
+    apiSwitchCompat.setOnCheckedChangeListener(this);
+
+    plusImageView.setOnClickListener(this);
+    minusImageView.setOnClickListener(this);
   }
 
   protected int[] getRgbBytes() {
@@ -168,6 +191,7 @@ public abstract class CameraActivity extends AppCompatActivity
   @Override
   public void onPreviewFrame(final byte[] bytes, final Camera camera) {
     if (isProcessingFrame) {
+      LOGGER.w("Dropping frame!");
       return;
     }
 
@@ -181,6 +205,7 @@ public abstract class CameraActivity extends AppCompatActivity
         onPreviewSizeChosen(new Size(previewSize.width, previewSize.height), 90);
       }
     } catch (final Exception e) {
+      LOGGER.e(e, "Exception!");
       return;
     }
 
@@ -189,28 +214,27 @@ public abstract class CameraActivity extends AppCompatActivity
     yRowStride = previewWidth;
 
     imageConverter =
-            new Runnable() {
-              @Override
-              public void run() {
-                ImageUtils.convertYUV420SPToARGB8888(bytes, previewWidth, previewHeight, rgbBytes);
-              }
-            };
+        new Runnable() {
+          @Override
+          public void run() {
+            ImageUtils.convertYUV420SPToARGB8888(bytes, previewWidth, previewHeight, rgbBytes);
+          }
+        };
 
     postInferenceCallback =
-            new Runnable() {
-              @Override
-              public void run() {
-                camera.addCallbackBuffer(bytes);
-                isProcessingFrame = false;
-              }
-            };
+        new Runnable() {
+          @Override
+          public void run() {
+            camera.addCallbackBuffer(bytes);
+            isProcessingFrame = false;
+          }
+        };
     processImage();
   }
 
   /** Callback for Camera2 API */
   @Override
   public void onImageAvailable(final ImageReader reader) {
-
     // We need wait until we have some size from onPreviewSizeChosen
     if (previewWidth == 0 || previewHeight == 0) {
       return;
@@ -225,7 +249,6 @@ public abstract class CameraActivity extends AppCompatActivity
         return;
       }
 
-
       if (isProcessingFrame) {
         image.close();
         return;
@@ -239,48 +262,49 @@ public abstract class CameraActivity extends AppCompatActivity
       final int uvPixelStride = planes[1].getPixelStride();
 
       imageConverter =
-              new Runnable() {
-                @Override
-                public void run() {
-                  ImageUtils.convertYUV420ToARGB8888(
-                          yuvBytes[0],
-                          yuvBytes[1],
-                          yuvBytes[2],
-                          previewWidth,
-                          previewHeight,
-                          yRowStride,
-                          uvRowStride,
-                          uvPixelStride,
-                          rgbBytes);
-                }
-              };
+          new Runnable() {
+            @Override
+            public void run() {
+              ImageUtils.convertYUV420ToARGB8888(
+                  yuvBytes[0],
+                  yuvBytes[1],
+                  yuvBytes[2],
+                  previewWidth,
+                  previewHeight,
+                  yRowStride,
+                  uvRowStride,
+                  uvPixelStride,
+                  rgbBytes);
+            }
+          };
 
       postInferenceCallback =
-              new Runnable() {
-                @Override
-                public void run() {
-                  image.close();
-                  isProcessingFrame = false;
-                }
-              };
+          new Runnable() {
+            @Override
+            public void run() {
+              image.close();
+              isProcessingFrame = false;
+            }
+          };
 
       processImage();
-
     } catch (final Exception e) {
+      LOGGER.e(e, "Exception!");
       Trace.endSection();
       return;
     }
     Trace.endSection();
-
   }
 
   @Override
   public synchronized void onStart() {
+    LOGGER.d("onStart " + this);
     super.onStart();
   }
 
   @Override
   public synchronized void onResume() {
+    LOGGER.d("onResume " + this);
     super.onResume();
 
     handlerThread = new HandlerThread("inference");
@@ -290,6 +314,7 @@ public abstract class CameraActivity extends AppCompatActivity
 
   @Override
   public synchronized void onPause() {
+    LOGGER.d("onPause " + this);
 
     handlerThread.quitSafely();
     try {
@@ -297,6 +322,7 @@ public abstract class CameraActivity extends AppCompatActivity
       handlerThread = null;
       handler = null;
     } catch (final InterruptedException e) {
+      LOGGER.e(e, "Exception!");
     }
 
     super.onPause();
@@ -304,11 +330,13 @@ public abstract class CameraActivity extends AppCompatActivity
 
   @Override
   public synchronized void onStop() {
+    LOGGER.d("onStop " + this);
     super.onStop();
   }
 
   @Override
   public synchronized void onDestroy() {
+    LOGGER.d("onDestroy " + this);
     super.onDestroy();
   }
 
@@ -318,8 +346,21 @@ public abstract class CameraActivity extends AppCompatActivity
     }
   }
 
-  private static boolean allPermissionsGranted(final int[] grandResults) {
-    for (int result : grandResults) {
+  @Override
+  public void onRequestPermissionsResult(
+      final int requestCode, final String[] permissions, final int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    if (requestCode == PERMISSIONS_REQUEST) {
+      if (allPermissionsGranted(grantResults)) {
+        setFragment();
+      } else {
+        requestPermission();
+      }
+    }
+  }
+
+  private static boolean allPermissionsGranted(final int[] grantResults) {
+    for (int result : grantResults) {
       if (result != PackageManager.PERMISSION_GRANTED) {
         return false;
       }
@@ -342,7 +383,7 @@ public abstract class CameraActivity extends AppCompatActivity
                 CameraActivity.this,
                 "Camera permission is required for this demo",
                 Toast.LENGTH_LONG)
-                .show();
+            .show();
       }
       requestPermissions(new String[] {PERMISSION_CAMERA}, PERMISSIONS_REQUEST);
     }
@@ -350,7 +391,7 @@ public abstract class CameraActivity extends AppCompatActivity
 
   // Returns true if the device supports the required hardware level, or better.
   private boolean isHardwareLevelSupported(
-          CameraCharacteristics characteristics, int requiredLevel) {
+      CameraCharacteristics characteristics, int requiredLevel) {
     int deviceLevel = characteristics.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
     if (deviceLevel == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
       return requiredLevel == deviceLevel;
@@ -372,7 +413,7 @@ public abstract class CameraActivity extends AppCompatActivity
         }
 
         final StreamConfigurationMap map =
-                characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
         if (map == null) {
           continue;
@@ -382,12 +423,14 @@ public abstract class CameraActivity extends AppCompatActivity
         // This should help with legacy situations where using the camera2 API causes
         // distorted or otherwise broken previews.
         useCamera2API =
-                (facing == CameraCharacteristics.LENS_FACING_EXTERNAL)
-                        || isHardwareLevelSupported(
-                        characteristics, CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL);
+            (facing == CameraCharacteristics.LENS_FACING_EXTERNAL)
+                || isHardwareLevelSupported(
+                    characteristics, CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL);
+        LOGGER.i("Camera API lv2?: %s", useCamera2API);
         return cameraId;
       }
     } catch (CameraAccessException e) {
+      LOGGER.e(e, "Not allowed to access camera");
     }
 
     return null;
@@ -399,24 +442,24 @@ public abstract class CameraActivity extends AppCompatActivity
     Fragment fragment;
     if (useCamera2API) {
       CameraConnectionFragment camera2Fragment =
-              CameraConnectionFragment.newInstance(
-                      new CameraConnectionFragment.ConnectionCallback() {
-                        @Override
-                        public void onPreviewSizeChosen(final Size size, final int rotation) {
-                          previewHeight = size.getHeight();
-                          previewWidth = size.getWidth();
-                          CameraActivity.this.onPreviewSizeChosen(size, rotation);
-                        }
-                      },
-                      this,
-                      getLayoutId(),
-                      getDesiredPreviewFrameSize());
+          CameraConnectionFragment.newInstance(
+              new CameraConnectionFragment.ConnectionCallback() {
+                @Override
+                public void onPreviewSizeChosen(final Size size, final int rotation) {
+                  previewHeight = size.getHeight();
+                  previewWidth = size.getWidth();
+                  CameraActivity.this.onPreviewSizeChosen(size, rotation);
+                }
+              },
+              this,
+              getLayoutId(),
+              getDesiredPreviewFrameSize());
 
       camera2Fragment.setCamera(cameraId);
       fragment = camera2Fragment;
     } else {
       fragment =
-              new LegacyCameraConnectionFragment(this, getLayoutId(), getDesiredPreviewFrameSize());
+          new LegacyCameraConnectionFragment(this, getLayoutId(), getDesiredPreviewFrameSize());
     }
 
     getFragmentManager().beginTransaction().replace(R.id.container, fragment).commit();
@@ -428,10 +471,15 @@ public abstract class CameraActivity extends AppCompatActivity
     for (int i = 0; i < planes.length; ++i) {
       final ByteBuffer buffer = planes[i].getBuffer();
       if (yuvBytes[i] == null) {
+        LOGGER.d("Initializing buffer %d at size %d", i, buffer.capacity());
         yuvBytes[i] = new byte[buffer.capacity()];
       }
       buffer.get(yuvBytes[i]);
     }
+  }
+
+  public boolean isDebug() {
+    return debug;
   }
 
   protected void readyForNextImage() {
@@ -453,46 +501,44 @@ public abstract class CameraActivity extends AppCompatActivity
     }
   }
 
-  //minyong
-  @UiThread
-  protected void showResultsInBottomSheet(List<Recognition> results,String email) {
-    if (results != null) {
-      Recognition recognition = results.get(0);
-      Toast.makeText(this.getApplicationContext(), recognition.getTitle(), Toast.LENGTH_SHORT).show();
+  @Override
+  public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+    setUseNNAPI(isChecked);
+    if (isChecked) apiSwitchCompat.setText("NNAPI");
+    else apiSwitchCompat.setText("TFLITE");
+  }
+
+  @Override
+  public void onClick(View v) {
+    if (v.getId() == R.id.plus) {
+      String threads = threadsTextView.getText().toString().trim();
+      int numThreads = Integer.parseInt(threads);
+      if (numThreads >= 9) return;
+      numThreads++;
+      threadsTextView.setText(String.valueOf(numThreads));
+      setNumThreads(numThreads);
+    } else if (v.getId() == R.id.minus) {
+      String threads = threadsTextView.getText().toString().trim();
+      int numThreads = Integer.parseInt(threads);
+      if (numThreads == 1) {
+        return;
+      }
+      numThreads--;
+      threadsTextView.setText(String.valueOf(numThreads));
+      setNumThreads(numThreads);
     }
-
-    long now = System.currentTimeMillis();
-    Date date = new Date(now);
-    simpleDateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
-
-    gpsTracker = new GpsTracker(CameraActivity.this);
-
-    double latitude = gpsTracker.getLatitude();
-    double longitude = gpsTracker.getLongitude();
-
-    String address = getCurrentAddress(latitude, longitude);
-
-    String time = simpleDateFormat.format(date);
-
-    HashMap result = new HashMap<>();
-    result.put("time", time);
-    result.put("email", email);
-    result.put("state", state);
-    result.put("address", address);
-    result.put("latitude", latitude);
-    result.put("longitude", longitude);
-
-
-    writeUser(Integer.toString(i++), time, email, state, address, latitude, longitude);
   }
 
-
-  protected Device getDevice() {
-    return device;
+  protected void showFrameInfo(String frameInfo) {
+    frameValueTextView.setText(frameInfo);
   }
 
-  protected int getNumThreads() {
-    return numThreads;
+  protected void showCropInfo(String cropInfo) {
+    cropValueTextView.setText(cropInfo);
+  }
+
+  protected void showInference(String inferenceTime) {
+    inferenceTimeTextView.setText(inferenceTime);
   }
 
   protected abstract void processImage();
@@ -503,232 +549,7 @@ public abstract class CameraActivity extends AppCompatActivity
 
   protected abstract Size getDesiredPreviewFrameSize();
 
-  protected abstract void onInferenceConfigurationChanged();
+  protected abstract void setNumThreads(int numThreads);
 
-  @Override
-  public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-
-  }
-
-  @Override
-  public void onClick(View v) {
-
-  }
-
-  @Override
-  public void onNothingSelected(AdapterView<?> parent) {
-    // Do nothing.
-  }
-
-  private void writeUser(String s, String time, String email, boolean state, String address, Double longitude, Double latitude) {
-    ReportData reportData =  new ReportData(time, email,  state, address, longitude, latitude);
-
-    //데이터 저장
-    mDatabase.child("reports").push().setValue(reportData)
-            .addOnSuccessListener(new OnSuccessListener<Void>() { //데이터베이스에 넘어간 이후 처리
-              @Override
-              public void onSuccess(Void aVoid) {
-                Toast.makeText(getApplicationContext(),"저장을 완료했습니다", Toast.LENGTH_LONG).show();
-              }
-            })
-            .addOnFailureListener(new OnFailureListener() {
-              @Override
-              public void onFailure(@NonNull Exception e) {
-                Toast.makeText(getApplicationContext(),"저장에 실패했습니다" , Toast.LENGTH_LONG).show();
-              }
-            });
-  }
-
-
-  @Override
-  public void onRequestPermissionsResult(int permsRequestCode, @NonNull String[] permissions, @NonNull int[] grandResults) {
-
-    super.onRequestPermissionsResult(permsRequestCode, permissions, grandResults);
-
-    if (permsRequestCode == PERMISSIONS_REQUEST) {
-      if (allPermissionsGranted(grandResults)) {
-        setFragment();
-      } else {
-        requestPermission();
-      }
-    }
-
-
-    if (permsRequestCode == PERMISSIONS_REQUEST_CODE && grandResults.length == PERMISSIONS.length) {
-
-      // 요청 코드가 PERMISSIONS_REQUEST_CODE 이고, 요청한 퍼미션 개수만큼 수신되었다면
-
-      boolean check_result = true;
-
-
-      // 모든 퍼미션을 허용했는지 체크합니다.
-
-      for (int result : grandResults) {
-        if (result != PackageManager.PERMISSION_GRANTED) {
-          check_result = false;
-          break;
-        }
-      }
-
-
-      if (check_result) {
-
-        //위치 값을 가져올 수 있음
-        ;
-      } else {
-        // 거부한 퍼미션이 있다면 앱을 사용할 수 없는 이유를 설명해주고 앱을 종료합니다.2 가지 경우가 있습니다.
-
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, PERMISSIONS[0])
-                || ActivityCompat.shouldShowRequestPermissionRationale(this, PERMISSIONS[1])) {
-
-          Toast.makeText(CameraActivity.this, "퍼미션이 거부되었습니다. 앱을 다시 실행하여 퍼미션을 허용해주세요.", Toast.LENGTH_LONG).show();
-          finish();
-
-
-        } else {
-
-          Toast.makeText(CameraActivity.this, "퍼미션이 거부되었습니다. 설정(앱 정보)에서 퍼미션을 허용해야 합니다. ", Toast.LENGTH_LONG).show();
-
-        }
-      }
-
-    }
-  }
-
-  void checkRunTimePermission(){
-
-    //런타임 퍼미션 처리
-    // 1. 위치 퍼미션을 가지고 있는지 체크합니다.
-    int hasFineLocationPermission = ContextCompat.checkSelfPermission(CameraActivity.this,
-            Manifest.permission.ACCESS_FINE_LOCATION);
-    int hasCoarseLocationPermission = ContextCompat.checkSelfPermission(CameraActivity.this,
-            Manifest.permission.ACCESS_COARSE_LOCATION);
-
-
-    if (hasFineLocationPermission == PackageManager.PERMISSION_GRANTED &&
-            hasCoarseLocationPermission == PackageManager.PERMISSION_GRANTED) {
-
-      // 2. 이미 퍼미션을 가지고 있다면
-      // ( 안드로이드 6.0 이하 버전은 런타임 퍼미션이 필요없기 때문에 이미 허용된 걸로 인식합니다.)
-
-
-      // 3.  위치 값을 가져올 수 있음
-
-
-
-    } else {  //2. 퍼미션 요청을 허용한 적이 없다면 퍼미션 요청이 필요합니다. 2가지 경우(3-1, 4-1)가 있습니다.
-
-      // 3-1. 사용자가 퍼미션 거부를 한 적이 있는 경우에는
-      if (ActivityCompat.shouldShowRequestPermissionRationale(CameraActivity.this, PERMISSIONS[0])) {
-
-        // 3-2. 요청을 진행하기 전에 사용자가에게 퍼미션이 필요한 이유를 설명해줄 필요가 있습니다.
-        Toast.makeText(CameraActivity.this, "이 앱을 실행하려면 위치 접근 권한이 필요합니다.", Toast.LENGTH_LONG).show();
-        // 3-3. 사용자게에 퍼미션 요청을 합니다. 요청 결과는 onRequestPermissionResult에서 수신됩니다.
-        ActivityCompat.requestPermissions(CameraActivity.this, PERMISSIONS,
-                PERMISSIONS_REQUEST_CODE);
-
-
-      } else {
-        // 4-1. 사용자가 퍼미션 거부를 한 적이 없는 경우에는 퍼미션 요청을 바로 합니다.
-        // 요청 결과는 onRequestPermissionResult에서 수신됩니다.
-        ActivityCompat.requestPermissions(CameraActivity.this, PERMISSIONS,
-                PERMISSIONS_REQUEST_CODE);
-      }
-
-    }
-
-  }
-
-
-  public String getCurrentAddress( double latitude, double longitude) {
-
-    //지오코더... GPS를 주소로 변환
-    Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-
-    List<Address> addresses;
-
-    try {
-
-      addresses = geocoder.getFromLocation(
-              latitude,
-              longitude,
-              15);
-    } catch (IOException ioException) {
-      //네트워크 문제
-      Toast.makeText(this, "지오코더 서비스 사용불가", Toast.LENGTH_LONG).show();
-      return "지오코더 서비스 사용불가";
-    } catch (IllegalArgumentException illegalArgumentException) {
-      Toast.makeText(this, "잘못된 GPS 좌표", Toast.LENGTH_LONG).show();
-      return "잘못된 GPS 좌표";
-
-    }
-
-
-
-    if (addresses == null || addresses.size() == 0) {
-      Toast.makeText(this, "주소 미발견", Toast.LENGTH_LONG).show();
-      return "주소 미발견";
-
-    }
-
-    Address address = addresses.get(0);
-    return address.getAddressLine(0).toString()+"\n";
-
-  }
-
-
-  //여기부터는 GPS 활성화를 위한 메소드들
-  private void showDialogForLocationServiceSetting() {
-
-    AlertDialog.Builder builder = new AlertDialog.Builder(CameraActivity.this);
-    builder.setTitle("위치 서비스 비활성화");
-    builder.setMessage("앱을 사용하기 위해서는 위치 서비스가 필요합니다.\n"
-            + "위치 설정을 수정하실래요?");
-    builder.setCancelable(true);
-    builder.setPositiveButton("설정", new DialogInterface.OnClickListener() {
-      @Override
-      public void onClick(DialogInterface dialog, int id) {
-        Intent callGPSSettingIntent
-                = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-        startActivityForResult(callGPSSettingIntent, GPS_ENABLE_REQUEST_CODE);
-      }
-    });
-    builder.setNegativeButton("취소", new DialogInterface.OnClickListener() {
-      @Override
-      public void onClick(DialogInterface dialog, int id) {
-        dialog.cancel();
-      }
-    });
-    builder.create().show();
-  }
-
-
-  @Override
-  protected void onActivityResult(int permsRequestCode, int resultCode, Intent data) {
-    super.onActivityResult(permsRequestCode, resultCode, data);
-
-    switch (permsRequestCode) {
-
-      case GPS_ENABLE_REQUEST_CODE:
-
-        //사용자가 GPS 활성 시켰는지 검사
-        if (checkLocationServicesStatus()) {
-          if (checkLocationServicesStatus()) {
-
-            Log.d("@@@", "onActivityResult : GPS 활성화 되있음");
-            checkRunTimePermission();
-            return;
-          }
-        }
-
-        break;
-    }
-  }
-
-  public boolean checkLocationServicesStatus() {
-    LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-
-    return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-            || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-  }
+  protected abstract void setUseNNAPI(boolean isChecked);
 }

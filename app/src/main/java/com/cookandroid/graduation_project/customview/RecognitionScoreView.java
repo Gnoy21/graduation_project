@@ -27,7 +27,7 @@ import com.cookandroid.graduation_project.tflite.Classifier.Recognition;
 import java.util.List;
 
 public class RecognitionScoreView extends View implements ResultsView {
-  private static final float TEXT_SIZE_DIP = 16;
+  private static final float TEXT_SIZE_DIP = 14;
   private final float textSizePx;
   private final Paint fgPaint;
   private final Paint bgPaint;

@@ -16,7 +16,6 @@ package com.cookandroid.graduation_project;
  * limitations under the License.
  */
 
-import android.annotation.SuppressLint;
 import android.app.Fragment;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -34,11 +33,13 @@ import android.view.ViewGroup;
 
 import com.cookandroid.graduation_project.customview.AutoFitTextureView;
 import com.cookandroid.graduation_project.env.ImageUtils;
+import com.cookandroid.graduation_project.env.Logger;
 
 import java.io.IOException;
 import java.util.List;
 
 public class LegacyCameraConnectionFragment extends Fragment {
+  private static final Logger LOGGER = new Logger();
   /** Conversion from screen rotation to JPEG orientation. */
   private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
 
@@ -83,7 +84,7 @@ public class LegacyCameraConnectionFragment extends Fragment {
               sizes[i++] = new Size(size.width, size.height);
             }
             Size previewSize =
-                    com.cookandroid.graduation_project.CameraConnectionFragment.chooseOptimalSize(
+                CameraConnectionFragment.chooseOptimalSize(
                     sizes, desiredSize.getWidth(), desiredSize.getHeight());
             parameters.setPreviewSize(previewSize.getWidth(), previewSize.getHeight());
             camera.setDisplayOrientation(90);
@@ -95,10 +96,9 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
           camera.setPreviewCallbackWithBuffer(imageListener);
           Camera.Size s = camera.getParameters().getPreviewSize();
-          camera.addCallbackBuffer(
-              new byte[ImageUtils.getYUVByteSize(/* width= */ s.height, /* height= */ s.width)]);
+          camera.addCallbackBuffer(new byte[ImageUtils.getYUVByteSize(s.height, s.width)]);
 
-          textureView.setAspectRatio(/* width= */ s.height, /* height= */ s.width);
+          textureView.setAspectRatio(s.height, s.width);
 
           camera.startPreview();
         }
@@ -118,15 +118,11 @@ public class LegacyCameraConnectionFragment extends Fragment {
   /** An additional thread for running tasks that shouldn't block the UI. */
   private HandlerThread backgroundThread;
 
-  @SuppressLint("ValidFragment")
   public LegacyCameraConnectionFragment(
       final Camera.PreviewCallback imageListener, final int layout, final Size desiredSize) {
     this.imageListener = imageListener;
     this.layout = layout;
     this.desiredSize = desiredSize;
-  }
-
-  public LegacyCameraConnectionFragment() {
   }
 
   @Override
@@ -155,9 +151,7 @@ public class LegacyCameraConnectionFragment extends Fragment {
     // the SurfaceTextureListener).
 
     if (textureView.isAvailable()) {
-      if (camera != null) {
-        camera.startPreview();
-      }
+      camera.startPreview();
     } else {
       textureView.setSurfaceTextureListener(surfaceTextureListener);
     }
@@ -183,6 +177,7 @@ public class LegacyCameraConnectionFragment extends Fragment {
       backgroundThread.join();
       backgroundThread = null;
     } catch (final InterruptedException e) {
+      LOGGER.e(e, "Exception!");
     }
   }
 

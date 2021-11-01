@@ -36,7 +36,7 @@
             </intent-filter>
         </activity>
 
-        <activity android:name="com.cookandroid.graduation_project.ClassifierActivity"></activity>
+        <activity android:name="com.cookandroid.graduation_project.DetectorActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.CovidInfoActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.HomeActivity"></activity>
         <activity android:name="com.cookandroid.graduation_project.ReportListActivity"></activity>

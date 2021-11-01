@@ -103,7 +103,7 @@ public class CovidInfoActivity extends AppCompatActivity {
                         break;
 
                     case XmlPullParser.START_TAG:
-                        tag= xpp.getName();//테그 이름 얻어오기
+                        tag= xpp.getName();
 
                         if(tag.equals("item")) {
                             i = i+1;

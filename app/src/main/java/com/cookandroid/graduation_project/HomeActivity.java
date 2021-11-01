@@ -27,7 +27,7 @@ public class HomeActivity extends AppCompatActivity {
 
 
         recogBtn.setOnClickListener(view -> {
-            Intent intent2 = new Intent(getApplicationContext(), ClassifierActivity.class);
+            Intent intent2 = new Intent(getApplicationContext(), DetectorActivity.class);
             intent2.putExtra("email", email);
             startActivity(intent2);
         });
