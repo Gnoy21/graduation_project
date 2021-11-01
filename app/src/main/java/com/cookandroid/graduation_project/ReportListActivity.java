@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -67,11 +68,7 @@ public class ReportListActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), "데이터를 가져오는데 실패했습니다", Toast.LENGTH_LONG).show();
             }
         });
-
     }
-
-
-
 
     class ReportAdapter extends RecyclerView.Adapter<ReportAdapter.ViewHolder> {
 
@@ -88,6 +85,15 @@ public class ReportListActivity extends AppCompatActivity {
             holder.tv_address.setText(arrayList.get(position).getAddress());
             holder.tv_date.setText(arrayList.get(position).getTime());
 
+            if(arrayList.get(position).isState()){
+                holder.tv_report_status.setText("처리됨");
+                holder.tv_report_status.setTextColor(Color.GREEN);
+            }
+            else{
+                holder.tv_report_status.setText("미처리");
+                holder.tv_report_status.setTextColor(Color.RED);
+            }
+
         }
 
         @Override
@@ -98,12 +104,14 @@ public class ReportListActivity extends AppCompatActivity {
         public class ViewHolder extends RecyclerView.ViewHolder {
             public TextView tv_date;
             public TextView tv_address;
+            private TextView tv_report_status;
 
 
             public ViewHolder(View view) {
                 super(view);
                 tv_date = (TextView) view.findViewById(R.id.tv_report_date);
                 tv_address = (TextView) view.findViewById(R.id.tv_report_address);
+                tv_report_status = view.findViewById(R.id.tv_report_status);
 
                 view.setOnClickListener(new View.OnClickListener() {
                     @Override
@@ -115,9 +123,7 @@ public class ReportListActivity extends AppCompatActivity {
                         startActivity(intent);
                     }
                 });
-
             }
         }
     }
-
 }

@@ -91,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
                 writeUser(Integer.toString(i++), user.getKakaoAccount().getProfile().getNickname(), user.getKakaoAccount().getEmail());
 
                 String adminEmail = "pmy0237@kakao.com";
+
                 if(user.getKakaoAccount().getEmail().equals(adminEmail)){
 
                     Intent intent = new Intent(getApplicationContext(), AdminReportListActivity.class);

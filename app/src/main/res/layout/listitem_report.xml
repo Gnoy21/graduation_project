@@ -81,7 +81,6 @@
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
             android:text="처리됨"
-            android:textColor="@color/green"
             android:textFontWeight="900"
             android:textSize="18sp" />
 

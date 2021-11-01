@@ -11,6 +11,7 @@ public class ReportData {
     public String address;
     public Double longitude;
     public Double latitude;
+    public String key;
 
 
     public ReportData() { }
@@ -23,6 +24,8 @@ public class ReportData {
         this.latitude=latitude;
     }
 
+
+
     public void setTime(String time) { this.time = time; }
     public void setEmail(String email) {
         this.email = email;
@@ -31,6 +34,7 @@ public class ReportData {
     public void setAddress(String address) { this.address = address; }
     public void setLatitude(Double latitude) { this.latitude = latitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
+    public void setKey(String key) { this.key = key; }
 
 
     public String getTime() { return time; }
@@ -41,6 +45,7 @@ public class ReportData {
     public String getAddress() { return address; }
     public Double getLongitude() { return longitude; }
     public Double getLatitude() { return latitude; }
+    public String getKey() { return key; }
 
 
 

@@ -1,6 +1,7 @@
 package com.cookandroid.graduation_project;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -21,6 +22,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class AdminReportListActivity extends AppCompatActivity {
 
@@ -28,6 +30,7 @@ public class AdminReportListActivity extends AppCompatActivity {
     private ArrayList<ReportData> arrayList;
     private String email;
     private ReportAdapter adapter;
+    private String key;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,10 +53,12 @@ public class AdminReportListActivity extends AppCompatActivity {
 
                 for (DataSnapshot postSnapshot : snapshot.getChildren()) {
                     ReportData reportData = postSnapshot.getValue(ReportData.class);
+                    String key = postSnapshot.getKey();
+                    reportData.setKey(key);
+                    Log.d("PRINTARRAY", key);
 
                     arrayList.add(reportData); //데이터 배열에 넣고 리사이클러뷰로 보낼 준비
                     Log.d("PRINTARRAY", String.valueOf(arrayList));
-
                 }
                 adapter.notifyDataSetChanged(); //리스트 저장 및 새로고침
             }
@@ -83,6 +88,14 @@ public class AdminReportListActivity extends AppCompatActivity {
 
             holder.tv_address.setText(arrayList.get(position).getAddress());
             holder.tv_date.setText(arrayList.get(position).getTime());
+            if(arrayList.get(position).isState()){
+                holder.tv_report_status.setText("처리됨");
+                holder.tv_report_status.setTextColor(Color.GREEN);
+            }
+            else{
+                holder.tv_report_status.setText("미처리");
+                holder.tv_report_status.setTextColor(Color.RED);
+            }
 
         }
 
@@ -95,17 +108,27 @@ public class AdminReportListActivity extends AppCompatActivity {
             public TextView tv_date;
             public TextView tv_address;
             private Button btn_handle;
+            private TextView tv_report_status;
 
             public ViewHolder(View view) {
                 super(view);
                 tv_date = view.findViewById(R.id.tv_report_date);
                 tv_address = view.findViewById(R.id.tv_report_address);
                 btn_handle = view.findViewById(R.id.btn_handle);
+                tv_report_status = view.findViewById(R.id.tv_report_status);
 
                 btn_handle.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
                         Toast.makeText(view.getContext(), String.valueOf(getAdapterPosition()), Toast.LENGTH_SHORT).show();
+                        String key = arrayList.get(getAdapterPosition()).getKey();
+
+                        DatabaseReference databaseReference = mDatabase.child("reports").child(key);
+                        HashMap result = new HashMap<>();
+                        result.put("state", true);
+                        databaseReference.updateChildren(result);
+
+
                     }
                 });
 
